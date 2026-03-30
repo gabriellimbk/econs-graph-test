@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Economics Lab: Elasticity & Markets</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --demand-color: #e74c3c;
+            --supply-color: #3498db;
+            --bg: #f8f9fa;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            background-color: var(--bg);
+            overflow: hidden;
+        }
+
+        /* Layout */
+        .left-panel {
+            flex: 1.6;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            border-right: 2px solid #ddd;
+        }
+
+        .right-panel {
+            flex: 1;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: white;
+        }
+
+        /* Graph Styling */
+        #canvas-container {
+            position: relative;
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        canvas { cursor: crosshair; }
+
+        /* Controls Styling */
+        .controls-row {
+            display: flex;
+            gap: 20px;
+            margin-top: 15px;
+            background: #eee;
+            padding: 15px;
+            border-radius: 10px;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .control-label {
+            font-size: 0.8rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            color: #555;
+        }
+
+        .toggle-group {
+            display: flex;
+            background: #ddd;
+            border-radius: 5px;
+            padding: 3px;
+        }
+
+        .toggle-btn {
+            padding: 5px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            background: transparent;
+            transition: all 0.2s;
+        }
+
+        .toggle-btn.active {
+            background: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            font-weight: bold;
+        }
+
+        .stats {
+            margin-top: 15px;
+            display: flex;
+            gap: 15px;
+        }
+
+        .stat-box {
+            padding: 10px 20px;
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            text-align: center;
+        }
+
+        .stat-label { font-size: 0.7rem; color: #777; margin-bottom: 2px; }
+        .stat-value { font-size: 1.2rem; font-weight: bold; }
+
+        /* Flashcard Styling */
+        .card-container {
+            perspective: 1000px;
+            width: 320px;
+            height: 200px;
+            cursor: pointer;
+            margin-bottom: 60px; /* Spacer added here */
+        }
+
+        .card {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+        }
+
+        .card.is-flipped { transform: rotateY(180deg); }
+
+        .card-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 25px;
+            text-align: center;
+            border-radius: 15px;
+            box-shadow: 0 8px 15px rgba(0,0,0,0.1);
+        }
+
+        .card-front { background: var(--primary); color: white; }
+        .card-back { background: #f8f9fa; color: var(--primary); transform: rotateY(180deg); border: 2px solid var(--primary); }
+
+        .nav-buttons { display: flex; gap: 10px; }
+        
+        .btn-nav {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            background: var(--primary);
+            color: white;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="left-panel">
+        <h2 style="margin:0 0 10px 0">Supply & Demand Interactive</h2>
+        
+        <div id="canvas-container">
+            <canvas id="graphCanvas" width="500" height="400"></canvas>
+        </div>
+
+        <!-- Elasticity Selectors -->
+        <div class="controls-row">
+            <div class="control-group">
+                <div class="control-label">Demand Elasticity</div>
+                <div class="toggle-group">
+                    <button class="toggle-btn active" id="btn-d-elastic" onclick="setElasticity('demand', 'elastic')">Elastic</button>
+                    <button class="toggle-btn" id="btn-d-inelastic" onclick="setElasticity('demand', 'inelastic')">Inelastic</button>
+                </div>
+            </div>
+            <div class="control-group">
+                <div class="control-label">Supply Elasticity</div>
+                <div class="toggle-group">
+                    <button class="toggle-btn active" id="btn-s-elastic" onclick="setElasticity('supply', 'elastic')">Elastic</button>
+                    <button class="toggle-btn" id="btn-s-inelastic" onclick="setElasticity('supply', 'inelastic')">Inelastic</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="stats">
+            <div class="stat-box">
+                <div class="stat-label">EQUILIBRIUM PRICE</div>
+                <div id="price-val" class="stat-value" style="color:var(--demand-color)">$0</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label">EQUILIBRIUM QTY</div>
+                <div id="qty-val" class="stat-value" style="color:var(--supply-color)">0</div>
+            </div>
+        </div>
+        <p style="font-size: 0.8rem; color: #888;">Drag the lines to shift curves. Use buttons to change slope.</p>
+    </div>
+
+    <div class="right-panel">
+        <h2 style="margin-bottom: 20px;">Knowledge Check</h2>
+        <div class="card-container" onclick="flipCard()">
+            <div class="card" id="card">
+                <div class="card-face card-front" id="card-question">Loading...</div>
+                <div class="card-face card-back" id="card-answer">Loading...</div>
+            </div>
+        </div>
+        <div class="nav-buttons">
+            <button class="btn-nav" onclick="prevCard()">Previous</button>
+            <button class="btn-nav" onclick="nextCard()">Next Question</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('graphCanvas');
+        const ctx = canvas.getContext('2d');
+        const margin = 50;
+        const width = canvas.width - margin * 2;
+        const height = canvas.height - margin * 2;
+
+        // Curve Slopes
+        const slopes = {
+            demand: { elastic: -0.4, inelastic: -1.8 },
+            supply: { elastic: 0.4, inelastic: 1.8 }
+        };
+
+        // State
+        let currentDemandSlope = slopes.demand.elastic;
+        let currentSupplySlope = slopes.supply.elastic;
+        let demandIntercept = 80; 
+        let supplyIntercept = 20;
+        let dragging = null;
+
+        function setElasticity(type, mode) {
+            // Update slopes
+            if (type === 'demand') {
+                currentDemandSlope = slopes.demand[mode];
+                document.getElementById('btn-d-elastic').classList.toggle('active', mode === 'elastic');
+                document.getElementById('btn-d-inelastic').classList.toggle('active', mode === 'inelastic');
+            } else {
+                currentSupplySlope = slopes.supply[mode];
+                document.getElementById('btn-s-elastic').classList.toggle('active', mode === 'elastic');
+                document.getElementById('btn-s-inelastic').classList.toggle('active', mode === 'inelastic');
+            }
+            drawGraph();
+        }
+
+        function drawGraph() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Axes
+            ctx.beginPath();
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 2;
+            ctx.moveTo(margin, 20); // Y axis top
+            ctx.lineTo(margin, canvas.height - margin); // Origin
+            ctx.lineTo(canvas.width - 20, canvas.height - margin); // X axis end
+            ctx.stroke();
+
+            // Arrows
+            ctx.fillStyle = '#333';
+            ctx.beginPath(); ctx.moveTo(margin-5, 25); ctx.lineTo(margin+5, 25); ctx.lineTo(margin, 10); ctx.fill();
+            ctx.beginPath(); ctx.moveTo(canvas.width-25, canvas.height-margin-5); ctx.lineTo(canvas.width-25, canvas.height-margin+5); ctx.lineTo(canvas.width-10, canvas.height-margin); ctx.fill();
+
+            // Labels
+            ctx.font = 'bold 12px Arial';
+            ctx.fillText("P", margin - 25, 30);
+            ctx.fillText("Q", canvas.width - 30, canvas.height - margin + 25);
+
+            // Draw Ticks
+            ctx.font = '10px Arial';
+            for(let i=0; i<=100; i+=20) {
+                let x = margin + (i * width/100);
+                let y = (canvas.height - margin) - (i * height/100);
+                ctx.fillText(i, x - 5, canvas.height - margin + 15);
+                ctx.fillText(i, margin - 20, y + 5);
+            }
+
+            const scaleP = height / 100;
+            const scaleQ = width / 100;
+
+            // Calculate Curve Points
+            const dY1 = (canvas.height - margin) - (demandIntercept * scaleP);
+            const dY2 = (canvas.height - margin) - ((demandIntercept + currentDemandSlope * 100) * scaleP);
+            const sY1 = (canvas.height - margin) - (supplyIntercept * scaleP);
+            const sY2 = (canvas.height - margin) - ((supplyIntercept + currentSupplySlope * 100) * scaleP);
+
+            // Demand Curve
+            ctx.beginPath(); ctx.strokeStyle = '#e74c3c'; ctx.lineWidth = 4;
+            ctx.moveTo(margin, dY1); ctx.lineTo(margin + width, dY2); ctx.stroke();
+            ctx.fillStyle = '#e74c3c'; ctx.fillText("D", margin + width + 5, dY2);
+
+            // Supply Curve
+            ctx.beginPath(); ctx.strokeStyle = '#3498db';
+            ctx.moveTo(margin, sY1); ctx.lineTo(margin + width, sY2); ctx.stroke();
+            ctx.fillStyle = '#3498db'; ctx.fillText("S", margin + width + 5, sY2);
+
+            // Equilibrium
+            const eqQ = (demandIntercept - supplyIntercept) / (currentSupplySlope - currentDemandSlope);
+            const eqP = currentSupplySlope * eqQ + supplyIntercept;
+
+            if (eqQ >= 0 && eqQ <= 120) {
+                const intersectX = margin + eqQ * scaleQ;
+                const intersectY = (canvas.height - margin) - eqP * scaleP;
+
+                ctx.setLineDash([5, 5]);
+                ctx.strokeStyle = '#999'; ctx.lineWidth = 1;
+                ctx.beginPath(); ctx.moveTo(intersectX, intersectY); ctx.lineTo(margin, intersectY);
+                ctx.moveTo(intersectX, intersectY); ctx.lineTo(intersectX, canvas.height - margin);
+                ctx.stroke(); ctx.setLineDash([]);
+
+                ctx.beginPath(); ctx.fillStyle = 'black'; ctx.arc(intersectX, intersectY, 5, 0, Math.PI*2); ctx.fill();
+
+                document.getElementById('price-val').innerText = `$${Math.max(0, eqP).toFixed(2)}`;
+                document.getElementById('qty-val').innerText = Math.max(0, Math.round(eqQ));
+            }
+        }
+
+        // Mouse Logic
+        canvas.onmousedown = (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = (e.clientX - rect.left - margin) / width * 100;
+            const mouseY = (canvas.height - margin - (e.clientY - rect.top)) / (height/100);
+
+            const dPriceAtX = demandIntercept + currentDemandSlope * mouseX;
+            const sPriceAtX = supplyIntercept + currentSupplySlope * mouseX;
+
+            if (Math.abs(mouseY - dPriceAtX) < 10) dragging = 'demand';
+            else if (Math.abs(mouseY - sPriceAtX) < 10) dragging = 'supply';
+        };
+
+        window.onmousemove = (e) => {
+            if (!dragging) return;
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = (e.clientX - rect.left - margin) / width * 100;
+            const mouseY = (canvas.height - margin - (e.clientY - rect.top)) / (height/100);
+
+            if (dragging === 'demand') demandIntercept = mouseY - (currentDemandSlope * mouseX);
+            else supplyIntercept = mouseY - (currentSupplySlope * mouseX);
+            drawGraph();
+        };
+
+        window.onmouseup = () => dragging = null;
+
+        // Flashcards
+        const cards = [
+            { q: "If a curve is vertical, is it perfectly elastic or inelastic?", a: "Perfectly Inelastic" },
+            { q: "Does an elastic curve have a flat or steep slope?", a: "Flat Slope" },
+            { q: "What happens to Total Revenue if price rises for an Elastic good?", a: "Total Revenue Decreases" },
+            { q: "Luxury goods usually have what type of elasticity?", a: "Elastic (high responsiveness to price)" },
+            { q: "Life-saving medicine is likely to have which elasticity?", a: "Inelastic (people buy it regardless of price)" }
+        ];
+
+        let curCard = 0;
+        function flipCard() { document.getElementById('card').classList.toggle('is-flipped'); }
+        function nextCard() { curCard = (curCard + 1) % cards.length; updateCard(); }
+        function prevCard() { curCard = (curCard - 1 + cards.length) % cards.length; updateCard(); }
+        function updateCard() {
+            document.getElementById('card').classList.remove('is-flipped');
+            setTimeout(() => {
+                document.getElementById('card-question').innerText = cards[curCard].q;
+                document.getElementById('card-answer').innerText = cards[curCard].a;
+            }, 150);
+        }
+
+        drawGraph();
+        updateCard();
+    </script>
+</body>
+</html>
